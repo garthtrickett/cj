@@ -1,0 +1,23 @@
+# Cargo.toml
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+color-eyre = "0.6.2"
+dotenv = "0.15.0"
+tracing = "0.1.40"
+poem = "1"
+poem-openapi = { version = "2", features = ["swagger-ui"]}
+tokio = { version = "1", features = ["full"] }
+tracing-subscriber = "0.3.1"
+sqlx = { version = "0.5", features = ["postgres", "runtime-tokio-rustls"] }
+
+[[bin]]
+name = "migrate"
+path = "src/migrate.rs"
+
+
