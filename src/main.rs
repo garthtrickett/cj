@@ -1,3 +1,5 @@
+use color_eyre::eyre::Result;
+use color_eyre::Report;
 use poem::error::InternalServerError;
 use poem::listener::TcpListener;
 use poem::web::Data;
@@ -59,7 +61,8 @@ impl TodosApi {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Report> {
+    color_eyre::install()?;
     dotenv::dotenv().ok();
     let subscriber = FmtSubscriber::builder()
         .with_max_level(tracing::Level::DEBUG)
