@@ -29,6 +29,10 @@ postgres-types = "0.2.4"
 
 ## Connection pooling
 deadpool-postgres = "0.12.1"
+regex = "1.10.3"
+fancy-regex = "0.13.0"
+unicode-segmentation = "1.11.0"
+unicode-normalization = "0.1.23"
 
 [build-dependencies]
 postgres = "0.19.7"

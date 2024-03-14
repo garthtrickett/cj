@@ -1,20 +1,17 @@
+use crate::endpoints::Api;
 use color_eyre::Report;
+use deadpool_postgres::{Config, Runtime};
 use poem::listener::TcpListener;
 use poem::EndpointExt;
 use poem::Route;
 use poem::Server;
 use poem_openapi::OpenApiService;
+use tokio_postgres::NoTls;
 use tracing::debug;
 use tracing_subscriber::FmtSubscriber;
-
-mod endpoints;
-mod models;
-
-use crate::endpoints::todos::TodosApi;
-
-use deadpool_postgres::{Config, Runtime};
-use tokio_postgres::NoTls;
 mod cornucopia;
+mod endpoints;
+mod ichiran;
 
 // Add more schema files and queries, rebuild the crate,
 // and observe how your cornucopia modules are regenerated!
@@ -30,8 +27,7 @@ async fn main() -> Result<(), Report> {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    let api_service =
-        OpenApiService::new(TodosApi, "Todos", "1.0.0").server("[6](http://localhost:3000)");
+    let api_service = OpenApiService::new(Api, "Api", "1.0.0").server("http://localhost:3000/api");
     // Connection pool configuration
     // This has nothing to do with cornucopia, please look at
     // `tokio_postgres` and `deadpool_postgres` for details
