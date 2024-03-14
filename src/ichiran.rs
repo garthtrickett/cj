@@ -1,7 +1,7 @@
 // ichiran.rs
+use regex::Regex;
 use std::io::Error;
 use std::process::Command;
-use unicode_segmentation::UnicodeSegmentation;
 
 pub fn run_docker_command(input: &str) -> Result<String, Error> {
     let output = Command::new("docker")
@@ -24,24 +24,35 @@ pub fn ichiran_output_to_bracket_furigana(ichiran_output: &str) -> Result<Vec<St
 }
 
 fn ichiran_output_to_kanji_hirigana_array(result: &str) -> Result<Vec<String>, Error> {
+    println!("Initial result: {}", result);
     let lines: Vec<&str> = result.lines().collect();
+    println!("Lines: {:?}", lines);
     let star_lines: Vec<&str> = lines
         .iter()
         .filter(|line| line.starts_with('*'))
         .copied()
         .collect();
+    println!("Star lines: {:?}", star_lines);
 
     let star_lines = remove_compound_words(star_lines);
+    println!("Star lines after removing compound words: {:?}", star_lines);
 
-    // If weird stuff happens on ocassion the euivalent of this python code needs may need to go in
-    // star_lines = [re.sub(r'(?<=【)[^】]*', lambda x: x.group().replace(' ', ''), s) for s in star_lines]
+    let re = Regex::new(r"(【[^】]*】)").unwrap();
+    let star_lines: Vec<String> = star_lines
+        .iter()
+        .map(|s| {
+            re.replace_all(s, |caps: &regex::Captures| caps[0].replace(" ", ""))
+                .to_string()
+        }) // Convert Cow<str> to String
+        .collect();
+    println!("Star lines after regex substitution: {:?}", star_lines);
 
     let mut new_list: Vec<String> = Vec::new();
-    for string in star_lines {
+    for string in &star_lines {
         let split_string: Vec<&str> = string.split(' ').collect(); // Now in wider scope
+        println!("Split string: {:?}", split_string);
 
         if string.contains('【') {
-            let split_string: Vec<&str> = string.split(' ').collect();
             let index = split_string
                 .iter()
                 .position(|word| word.contains('【'))
@@ -55,11 +66,13 @@ fn ichiran_output_to_kanji_hirigana_array(result: &str) -> Result<Vec<String>, E
             new_list.push(split_string.last().unwrap().to_string());
         }
     }
+    println!("New list before replacing brackets: {:?}", new_list);
 
     new_list = new_list
         .iter()
         .map(|item| item.replace('【', "[").replace('】', "]"))
         .collect();
+    println!("Final new list: {:?}", new_list);
 
     Ok(new_list)
 }
@@ -67,10 +80,12 @@ fn ichiran_output_to_kanji_hirigana_array(result: &str) -> Result<Vec<String>, E
 fn process_kanji_hirigana_into_kanji_with_furigana(
     new_list: Vec<String>,
 ) -> Result<Vec<String>, Error> {
+    println!("{:?}", new_list);
     let result_list: Vec<String> = new_list
         .into_iter()
         .map(|item| add_furigana(&item))
         .collect();
+    println!("{:?}", result_list);
     Ok(result_list)
 }
 
@@ -96,23 +111,20 @@ fn add_furigana(s: &str) -> String {
     let outside = parts[0].trim().to_string();
     let mut inside = parts[1].split(']').next().unwrap().trim().to_string();
 
-    let jap_comma_after_brackets = if inside.contains('、') {
+    let jap_comma_after_brackets = inside.contains('、');
+    if jap_comma_after_brackets {
         inside = inside.replace('、', "");
-        true
-    } else {
-        false
-    };
+    }
 
-    let outside_graphemes =
-        UnicodeSegmentation::graphemes(&outside[..], true).collect::<Vec<&str>>();
-    let inside_graphemes = UnicodeSegmentation::graphemes(&inside[..], true).collect::<Vec<&str>>();
+    let outside_chars: Vec<char> = outside.chars().collect();
+    let inside_chars: Vec<char> = inside.chars().collect();
 
-    let n = std::cmp::min(outside_graphemes.len(), inside_graphemes.len());
+    let n = std::cmp::min(outside_chars.len(), inside_chars.len());
     let mut common_start = 0;
     let mut common_end = 0;
 
     for i in 0..n {
-        if outside_graphemes[i] == inside_graphemes[i] {
+        if outside_chars[i] == inside_chars[i] {
             common_start += 1;
         } else {
             break;
@@ -120,7 +132,7 @@ fn add_furigana(s: &str) -> String {
     }
 
     for i in 0..n {
-        if outside_graphemes[n - i - 1] == inside_graphemes[n - i - 1] {
+        if outside_chars[outside_chars.len() - i - 1] == inside_chars[inside_chars.len() - i - 1] {
             common_end += 1;
         } else {
             break;
@@ -128,25 +140,33 @@ fn add_furigana(s: &str) -> String {
     }
 
     let output = if common_start == 0 && common_end == 0 {
-        format!(" {}", s.replace(' ', ""))
+        format!(" {}[{}]", outside, inside)
     } else if common_start > 0 {
         format!(
             " {}[{}]",
-            outside_graphemes[..common_start].concat(),
-            inside_graphemes[common_start..].concat()
+            outside,
+            inside_chars[common_start..].iter().collect::<String>()
         )
     } else {
         format!(
             " {}[{}]{}",
-            outside_graphemes[..outside_graphemes.len() - common_end].concat(),
-            inside_graphemes[..inside_graphemes.len() - common_end].concat(),
-            outside_graphemes[outside_graphemes.len() - common_end..].concat()
+            outside_chars[..outside_chars.len() - common_end]
+                .iter()
+                .collect::<String>(),
+            inside_chars[..inside_chars.len() - common_end]
+                .iter()
+                .collect::<String>(),
+            outside_chars[outside_chars.len() - common_end..]
+                .iter()
+                .collect::<String>()
         )
     };
 
-    if jap_comma_after_brackets {
+    let final_output = if jap_comma_after_brackets {
         format!("{},", output)
     } else {
         output
-    }
+    };
+
+    final_output
 }
