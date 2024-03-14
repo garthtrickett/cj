@@ -4,8 +4,6 @@ use poem::EndpointExt;
 use poem::Route;
 use poem::Server;
 use poem_openapi::OpenApiService;
-use sqlx::postgres::PgPool;
-use std::env;
 use tracing::debug;
 use tracing_subscriber::FmtSubscriber;
 
@@ -14,6 +12,12 @@ mod models;
 
 use crate::endpoints::todos::TodosApi;
 
+use deadpool_postgres::{Config, Runtime};
+use tokio_postgres::NoTls;
+mod cornucopia;
+
+// Add more schema files and queries, rebuild the crate,
+// and observe how your cornucopia modules are regenerated!
 #[tokio::main]
 async fn main() -> Result<(), Report> {
     color_eyre::install()?;
@@ -22,13 +26,23 @@ async fn main() -> Result<(), Report> {
         .with_max_level(tracing::Level::DEBUG)
         .finish();
 
+    debug!("test");
+
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    debug!(feeling = "yay", "I'm gonna shave a yak also");
-
-    let pool = PgPool::connect(&env::var("DATABASE_URL").unwrap()).await?;
     let api_service =
         OpenApiService::new(TodosApi, "Todos", "1.0.0").server("[6](http://localhost:3000)");
+    // Connection pool configuration
+    // This has nothing to do with cornucopia, please look at
+    // `tokio_postgres` and `deadpool_postgres` for details
+    let mut cfg = Config::new();
+    cfg.user = Some(String::from("postgres"));
+    cfg.password = Some(String::from("password"));
+    cfg.host = Some(String::from("127.0.0.1"));
+    cfg.port = Some(5432);
+    cfg.dbname = Some(String::from("cj"));
+    let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();
+
     let ui = api_service.swagger_ui();
     let app = Route::new()
         .nest("/api", api_service)

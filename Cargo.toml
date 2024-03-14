@@ -1,6 +1,6 @@
 # Cargo.toml
 [package]
-name = "app"
+name = "cj"
 version = "0.1.0"
 edition = "2021"
 
@@ -11,10 +11,31 @@ color-eyre = "0.6.2"
 dotenv = "0.15.0"
 tracing = "0.1.40"
 poem = "1"
-poem-openapi = { version = "2", features = ["swagger-ui"]}
-tokio = { version = "1", features = ["full"] }
+poem-openapi = { version = "3.0.5", features = ["swagger-ui"]}
 tracing-subscriber = "0.3.1"
 sqlx = { version = "0.5", features = ["postgres", "runtime-tokio-rustls"] }
+
+
+cornucopia = "0.9.0"
+cornucopia_async = "0.6.0"
+
+# Async
+tokio = { version = "1.24.2", features = ["full"] }
+futures = "0.3.25"
+
+# Postgres interaction
+tokio-postgres = "0.7.7"
+postgres-types = "0.2.4"
+
+## Connection pooling
+deadpool-postgres = "0.12.1"
+
+[build-dependencies]
+postgres = "0.19.7"
+dotenv = "0.15.0"
+cornucopia = "0.9.0"
+
+
 
 [[bin]]
 name = "migrate"
