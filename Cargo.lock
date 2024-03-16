@@ -319,6 +319,7 @@ dependencies = [
  "postgres",
  "postgres-types",
  "regex",
+ "serde",
  "sqlx",
  "tokio",
  "tokio-postgres",
