@@ -160,15 +160,130 @@ fn add_furigana(s: &str) -> String {
     }
 }
 
-pub fn extract_first_pos_tags(lines: Vec<&str>) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+//... If these are always the same maybe they don't need to go into DB .. //
+
+// Non-past Affirmative Plain: 食べる
+// Non-past Affirmative Formal: 食べ
+// Non-past Negative Plain: 食べない
+// Non-past Negative Formal: たべません
+// Non-past Negative Plain: 食べられない
+// Past (~ta) Affirmative Formal: 食べました
+// Past (~ta) Affirmative Plain: 食べた
+// Past (~ta) Negative Plain: 食べなかった
+// Past (~ta) Negative Formal: 食べませんでした
+// Conjunctive (~te) Affirmative Plain: 食べて
+// Volitional Affirmative Plain: 食べよう
+// Volitional Affirmative Formal: 食べましょう
+// Volitional Negative Plain: 食べまい
+// Volitional Formal: でしょう
+// Volitional Plain: 食べるだろう
+// Causative Affirmative Plain: 食べさせる
+// Causative Affirmative Formal: 食べさせます
+// Causative Negative Plain: 食べさせない
+// Causative Negative Formal: 食べさせません
+// Causative-Passive Affirmative Plain:  食べさせられる
+// Causative-Passive Negative Plain: 食べさせられない
+// Causative-Passive Affirmative Formal: 食べさせられます
+// Causative-Passive Negative Formal: 食べさせられません
+// Imperative Affirmative Plain: 食べろ
+// Provisional (~eba) Affirmative Plain: 食べれば
+// Provisional (~eba) Negative Plain: 食べなければ
+// Conditional (~tara) Affirmative Plain: 食べたら
+// Conditional (~tara) Negative Plain: 食べなかったら
+// Passive Affirmative Plain: 食べられる
+// Passive Affirmative Formal: 食べられま
+// Passive Negative Formal: 食べられません
+// Passive Negative Plain: 食べられない
+// Potential Affirmative Plain: 食べられる
+// Potential Affirmative Formal: 食べられます
+// Potential Negative Plain: 食べられない
+// Potential Negative Formal: 食べられません
+
+// Verbs that often follow the te form
+// いる (iru): Used to indicate an ongoing action (progressive tense), a habitual action, or a state of being.
+// くる (kuru): Used to indicate that an action is coming or going to happen.
+// いく (iku): Used to indicate that an action is going or moving away.
+// みる (miru): Used to indicate trying out an action or seeing what happens.
+// おく (oku): Used to indicate doing something in preparation for something.
+// ある (aru): Used to indicate that an action has been completed (perfect aspect).
+// しまう (shimau): Used to indicate completion of an action, often with a sense of regret.
+// くれる (kureru): Used to indicate that someone does something for the speaker.
+// あげる (ageru): Used to indicate that the speaker does something for someone else.
+// もらう (morau): Used to indicate that the speaker receives the action from someone else.
+
+// ADJECTIVES
+// Non-past
+
+// Affirmative Plain: 速い (hayai)
+// Affirmative Formal: 速いです (hayai desu)
+// Negative Plain: 速くない (hayakunai)
+// Negative Formal: 速くないです (hayakunai desu)
+// Past
+
+// Affirmative Plain: 速かった (hayakatta)
+// Affirmative Formal: 速かったです (hayakatta desu)
+// Negative Plain: 速くなかった (hayakunakatta)
+// Negative Formal: 速くなかったです (hayakunakatta desu)
+// Provisional (~eba)
+
+// Affirmative Plain: 速ければ (hayakereba)
+// Negative Plain: 速くなければ (hayakunakereba)
+// Conditional (~tara)
+
+// Affirmative Plain: 速かったら (hayakattara)
+// Negative Plain: 速くなかったら (hayakunakattara)
+// Volitional
+
+// Affirmative Plain: 速かろう (hayakarou)
+// Affirmative Formal: 速いでしょう (hayai deshou)
+// Negative Plain: 速くなかろう (hayakunakarou)
+// Negative Formal: 速くないでしょう (hayakunai deshou)
+
+// nouns/na-adjectives
+
+// Non-past
+
+// Affirmative Plain: 静かだ (shizuka da)
+// Affirmative Formal: 静かです (shizuka desu)
+// Negative Plain: 静かではない (shizuka dewa nai)
+// Negative Formal: 静かではありません (shizuka dewa arimasen)
+
+// // Past
+
+// Affirmative Plain: 静かだった (shizuka datta)
+// Affirmative Formal: 静かでした (shizuka deshita)
+// Negative Plain: 静かではなかった (shizuka dewa nakatta)
+// Negative Formal: 静かではありませんでした (shizuka dewa arimasen deshita)
+
+// // Provisional (~eba)
+
+// Affirmative Plain: 静かならば (shizuka naraba)
+// Negative Plain: 静かでなければ (shizuka denakereba)
+
+// // Conditional (~tara)
+
+// Affirmative Plain: 静かだったら (shizuka dattara)
+// Negative Plain: 静かではなかったら (shizuka dewa nakattara)
+
+// // Volitional
+
+// Affirmative Plain: 静かだろう (shizuka darou)
+// Affirmative Formal: 静かでしょう (shizuka deshou)
+// Negative Plain: 静かではなかろう (shizuka dewa nakarou)
+// Negative Formal: 静かではないでしょう (shizuka dewa nai deshou)
+
+pub fn extract_pos_tags(lines: Vec<&str>) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut pos_tags = Vec::new();
+    let mut conjugation_types = Vec::new();
+    let re = Regex::new(r"\[([a-z0-9,-]+)\]")?;
+    let re_conj = Regex::new(r"\[ Conjugation: \[.*?\] (.*)")?;
 
     for i in 0..lines.len() {
+        println!("{:?}", lines[i]);
         if lines[i].starts_with("* ") {
             // Check the next line for the part of speech tag
             if i + 1 < lines.len() {
                 if lines[i + 1].starts_with("1.") {
-                    let re = Regex::new(r"\[([a-z0-9,-]+)\]")?;
                     let match_ = re.captures(lines[i + 1]);
                     if let Some(match_) = match_ {
                         pos_tags.push(match_[1].to_string());
@@ -176,17 +291,22 @@ pub fn extract_first_pos_tags(lines: Vec<&str>) -> Result<Vec<String>, Box<dyn s
                 }
                 // This deals with the conjugation case that spits out '\n \n'
                 else if lines[i + 1].is_empty() {
-                    let re = Regex::new(r"\[([a-z0-9,-]+)\]")?;
                     let match_ = re.captures(lines[i + 2]);
                     if let Some(match_) = match_ {
                         pos_tags.push(match_[1].to_string());
                     }
                 }
             }
+        } else if lines[i].starts_with("[ Conjugation") {
+            let match_ = re_conj.captures(lines[i]);
+            if let Some(match_) = match_ {
+                conjugation_types.push(match_[1].to_string());
+            }
         }
     }
 
     println!("POS tags: {:?}", pos_tags); // Print the final list of POS tags
+    println!("Conjugation types: {:?}", conjugation_types); // Print the final list of conjugation types
     Ok(pos_tags)
 }
 
