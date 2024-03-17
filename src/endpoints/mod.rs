@@ -2,6 +2,7 @@ use crate::cornucopia::queries::module_1::example_query;
 use crate::ichiran::extract_pos_tags;
 use crate::ichiran::find_grammar_rules;
 use crate::ichiran::ichiran_output_to_bracket_furigana;
+use crate::ichiran::ichiran_output_to_sentence_array;
 use crate::ichiran::run_docker_command;
 use color_eyre::eyre::Result;
 use deadpool_postgres::Pool;
@@ -84,13 +85,22 @@ impl Api {
                     ))
                 })?;
 
-                let sentence_with_bracket_furigana = ichiran_output_to_bracket_furigana(lines)
-                    .map_err(|_| {
+                let sentence_with_bracket_furigana =
+                    ichiran_output_to_bracket_furigana(lines.clone()).map_err(|_| {
                         InternalServerError(std::io::Error::new(
                             std::io::ErrorKind::Other,
                             "Failed to process output from docker command",
                         ))
                     })?;
+
+                let sentence_array = ichiran_output_to_sentence_array(lines).map_err(|_| {
+                    InternalServerError(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "Failed to process output from docker command",
+                    ))
+                })?;
+
+                println!("Sentence Array: {:?}", sentence_array);
 
                 // Define your rules here
                 let rules: Vec<Vec<String>> = vec![
@@ -113,8 +123,6 @@ impl Api {
                     vec!["adj-na".to_string(), "な".to_string()],
                     vec!["か".to_string()],
                 ];
-
-                println!("{:?}", sentence_with_bracket_furigana);
 
                 let grammar_rules =
                     find_grammar_rules(sentence_with_bracket_furigana, pos_tags, rules).map_err(

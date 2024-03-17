@@ -67,6 +67,8 @@ fn ichiran_output_to_kanji_hirigana_array(lines: Vec<&str>) -> Result<Vec<String
         .map(|item| item.replace('【', "[").replace('】', "]"))
         .collect();
 
+    println!("end");
+    println!("{:?}", new_list);
     Ok(new_list)
 }
 
@@ -272,6 +274,58 @@ fn add_furigana(s: &str) -> String {
 // Negative Plain: 静かではなかろう (shizuka dewa nakarou)
 // Negative Formal: 静かではないでしょう (shizuka dewa nai deshou)
 
+pub fn ichiran_output_to_sentence_array(
+    lines: Vec<&str>,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let mut result = Vec::new();
+    let mut compound_word_flag = false;
+    let mut conjugation_flag = false;
+    let mut last_word_index = 0;
+    let mut conjugation_added = false;
+    println!("Starting to process lines");
+    for i in 0..lines.len() {
+        println!("Processing line: {}", lines[i]);
+        if lines[i].contains("Compound word") {
+            compound_word_flag = true;
+            conjugation_added = false;
+            println!("Found a compound word");
+        }
+        if lines[i].contains("Conjugation") {
+            conjugation_flag = true;
+            println!("Found the conjugation of the word");
+        }
+        if conjugation_flag && !conjugation_added && i < lines.len() - 1 {
+            let next_line = lines[i + 1];
+            let parts: Vec<&str> = next_line.split("【").collect();
+            if parts.len() > 1 {
+                let word = parts[0].trim().to_string();
+                println!("Extracted word from the line after conjugation: {}", word);
+                if compound_word_flag {
+                    println!("Replacing last word in result with extracted word");
+                    conjugation_added = true;
+                }
+                result[last_word_index] = word;
+                conjugation_flag = false;
+            }
+        }
+        if lines[i].starts_with("*") {
+            println!("Line starts with '*'");
+            let parts: Vec<&str> = lines[i].split_whitespace().collect();
+            println!("Parts after splitting the line: {:?}", parts);
+            if parts.len() > 2 {
+                let word = parts[2]
+                    .trim_matches(|c| c == '【' || c == '】')
+                    .to_string();
+                println!("Pushing word to result: {}", word);
+                result.push(word);
+                last_word_index = result.len() - 1;
+            }
+        }
+    }
+    println!("Final result: {:?}", result);
+    Ok(result)
+}
+
 pub fn extract_pos_tags(lines: Vec<&str>) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut pos_tags = Vec::new();
     let mut conjugation_types = Vec::new();
@@ -279,7 +333,6 @@ pub fn extract_pos_tags(lines: Vec<&str>) -> Result<Vec<String>, Box<dyn std::er
     let re_conj = Regex::new(r"\[ Conjugation: \[.*?\] (.*)")?;
 
     for i in 0..lines.len() {
-        println!("{:?}", lines[i]);
         if lines[i].starts_with("* ") {
             // Check the next line for the part of speech tag
             if i + 1 < lines.len() {
@@ -305,8 +358,6 @@ pub fn extract_pos_tags(lines: Vec<&str>) -> Result<Vec<String>, Box<dyn std::er
         }
     }
 
-    println!("POS tags: {:?}", pos_tags); // Print the final list of POS tags
-    println!("Conjugation types: {:?}", conjugation_types); // Print the final list of conjugation types
     Ok(pos_tags)
 }
 
@@ -325,7 +376,6 @@ pub fn find_grammar_rules(
                 &rule,
             )?;
             rule_matches.extend(matches.clone());
-            println!("Single element rule matches: {:?}", matches);
         } else {
             let matches = match_multi_element_rule(
                 &kanji_with_furigana_array,
@@ -333,11 +383,8 @@ pub fn find_grammar_rules(
                 &rule,
             )?;
             rule_matches.extend(matches.clone());
-            println!("Multi element rule matches: {:?}", matches);
         }
     }
-
-    println!("Total rule matches: {:?}", rule_matches);
 
     Ok(rule_matches)
 }
@@ -355,8 +402,6 @@ fn match_single_element_rule(
         }
     }
 
-    println!("Single element rule: {:?}, Matches: {:?}", rule, matches);
-
     Ok(matches)
 }
 
@@ -367,19 +412,11 @@ fn match_multi_element_rule(
 ) -> Result<Vec<Vec<String>>, Box<dyn std::error::Error>> {
     let mut rule_matches = vec![];
 
-    println!("{:?}", parts_of_speech_array);
-
     if rule.len() == 2 {
         let rule_start: Vec<&str> = rule[0].split(',').collect(); // error happens here -> Message:  index out of bounds: the len is 1 but the index is 1
         let rule_end = &rule[1];
 
         for i in 0..(kanji_with_furigana_array.len() - 1) {
-            println!(
-                "Index: {}, Array Length: {}",
-                i,
-                parts_of_speech_array.len()
-            );
-
             let pos_tags_start: Vec<&str> = parts_of_speech_array[i].split(',').collect();
 
             if kanji_with_furigana_array[i + 1] == *rule_end
@@ -406,11 +443,6 @@ fn match_multi_element_rule(
             }
         }
     }
-
-    println!(
-        "Multi element rule: {:?}, Matches: {:?}",
-        rule, rule_matches
-    );
 
     Ok(rule_matches)
 }
