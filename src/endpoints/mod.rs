@@ -3,7 +3,9 @@ use crate::ichiran::extract_pos_tags;
 use crate::ichiran::find_grammar_rules;
 use crate::ichiran::ichiran_output_to_bracket_furigana;
 use crate::ichiran::ichiran_output_to_sentence_array;
+use crate::ichiran::process_lines;
 use crate::ichiran::run_docker_command;
+// use color_eyre::config::PanicHook;
 use color_eyre::eyre::Result;
 use deadpool_postgres::Pool;
 use poem::error::InternalServerError;
@@ -78,29 +80,42 @@ impl Api {
                 // let output_str_hard = "食べない".to_string();
                 let lines: Vec<&str> = output_str.lines().collect();
 
-                let pos_tags = extract_pos_tags(lines.clone()).map_err(|_| {
-                    InternalServerError(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "Failed to extract grammar",
-                    ))
-                })?;
+                // let pos_tags = extract_pos_tags(lines.clone()).map_err(|_| {
+                //     InternalServerError(std::io::Error::new(
+                //         std::io::ErrorKind::Other,
+                //         "Failed to extract grammar",
+                //     ))
+                // })?;
 
-                let sentence_with_bracket_furigana =
-                    ichiran_output_to_bracket_furigana(lines.clone()).map_err(|_| {
-                        InternalServerError(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            "Failed to process output from docker command",
-                        ))
-                    })?;
+                // println!("POS Tags: {:?}", pos_tags);
 
-                let sentence_array = ichiran_output_to_sentence_array(lines).map_err(|_| {
+                // let sentence_with_bracket_furigana =
+                //     ichiran_output_to_bracket_furigana(lines.clone()).map_err(|_| {
+                //         InternalServerError(std::io::Error::new(
+                //             std::io::ErrorKind::Other,
+                //             "Failed to process output from docker command",
+                //         ))
+                //     })?;
+
+                // let sentence_array = ichiran_output_to_sentence_array(lines).map_err(|_| {
+                //     InternalServerError(std::io::Error::new(
+                //         std::io::ErrorKind::Other,
+                //         "Failed to process output from docker command",
+                //     ))
+                // })?;
+
+                // println!("Sentence Array: {:?}", sentence_array);
+
+                let result = process_lines(lines).map_err(|_| {
                     InternalServerError(std::io::Error::new(
                         std::io::ErrorKind::Other,
                         "Failed to process output from docker command",
                     ))
                 })?;
 
-                println!("Sentence Array: {:?}", sentence_array);
+                for line in &result {
+                    println!("{:?}\n", line);
+                }
 
                 // Define your rules here
                 let rules: Vec<Vec<String>> = vec![
@@ -122,19 +137,21 @@ impl Api {
                     vec!["よくなかったです".to_string()],
                     vec!["adj-na".to_string(), "な".to_string()],
                     vec!["か".to_string()],
+                    vec!["v1".to_string()],  // ichidan verbs
+                    vec!["v5r".to_string()], // godan verbs
+                    // new ones
+                    vec!["".to_string()],
                 ];
 
-                let grammar_rules =
-                    find_grammar_rules(sentence_with_bracket_furigana, pos_tags, rules).map_err(
-                        |_| {
-                            InternalServerError(std::io::Error::new(
-                                std::io::ErrorKind::Other,
-                                "Failed to find grammar rules",
-                            ))
-                        },
-                    )?;
+                // let grammar_rules =
+                //     find_grammar_rules(sentence_array, pos_tags, rules).map_err(|_| {
+                //         InternalServerError(std::io::Error::new(
+                //             std::io::ErrorKind::Other,
+                //             "Failed to find grammar rules",
+                //         ))
+                //     })?;
 
-                println!("Grammar rules: {:?}", grammar_rules); // Print the grammar rules
+                // println!("Grammar rules: {:?}", grammar_rules); // Print the grammar rules
 
                 Ok(PlainText("Placeholder".to_string()))
             }
