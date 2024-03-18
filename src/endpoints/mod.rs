@@ -1,9 +1,9 @@
 use crate::cornucopia::queries::module_1::example_query;
 use crate::ichiran::ichiran_output_to_bracket_furigana;
-use crate::ichiran::load_rules;
-use crate::ichiran::match_rules;
-use crate::ichiran::process_lines;
 use crate::ichiran::run_docker_command;
+use crate::sentence_processing::load_rules;
+use crate::sentence_processing::match_rules;
+use crate::sentence_processing::process_lines;
 // use color_eyre::config::PanicHook;
 use color_eyre::eyre::Result;
 use deadpool_postgres::Pool;
