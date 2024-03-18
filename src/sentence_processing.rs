@@ -1,7 +1,5 @@
 // sentence_processing.rs
 use regex::Regex;
-use std::io::Error;
-use std::process::Command;
 
 //... If these are always the same maybe they don't need to go into DB .. //
 
@@ -116,20 +114,20 @@ use std::process::Command;
 // Negative Formal: 静かではないでしょう (shizuka dewa nai deshou)
 
 #[derive(Debug)]
-struct Conjugation {
+pub struct Conjugation {
     pos: String,
-    base_form: String,
+    word: String,
     conjugation_type: String,
 }
 
 #[derive(Debug)]
-struct Word {
+pub struct Word {
     word: String,
     pos: String,
 }
 
 #[derive(Debug)]
-struct CompoundWord {
+pub struct CompoundWord {
     first: Conjugation,
     second: Conjugation,
 }
@@ -146,11 +144,8 @@ pub fn process_lines(lines: Vec<&str>) -> Result<Vec<Token>, Box<dyn std::error:
 
     for i in 0..lines.len() {
         let line = lines[i];
-        println!("Processing line: {}", line);
         if line.contains("Compound word") {
-            println!("Line contains 'Compound word'");
             if i + 3 < lines.len() && lines[i + 3].contains("Conjugation") {
-                println!("Found 'Conjugation' in line {}", i + 3);
                 let re = Regex::new(r"\[ Conjugation: \[(.*?)\] (.*)").unwrap();
                 let captures = re.captures(lines[i + 3]).unwrap();
                 let pos = captures[1].to_string();
@@ -159,13 +154,9 @@ pub fn process_lines(lines: Vec<&str>) -> Result<Vec<Token>, Box<dyn std::error:
                 let re_base = Regex::new(r"  (.*?) 【").unwrap();
                 let captures = re_base.captures(next_line).unwrap();
                 let base_form = captures[1].to_string();
-                println!(
-                    "First conjugation: pos={}, base_form={}, conjugation_type={}",
-                    pos, base_form, conjugation_type
-                );
                 let first = Conjugation {
                     pos,
-                    base_form,
+                    word: base_form,
                     conjugation_type,
                 };
                 let captures = re.captures(lines[i + 6]).unwrap();
@@ -174,20 +165,15 @@ pub fn process_lines(lines: Vec<&str>) -> Result<Vec<Token>, Box<dyn std::error:
                 let next_line = lines[i + 7];
                 let captures = re_base.captures(next_line).unwrap();
                 let base_form = captures[1].to_string();
-                println!(
-                    "Second conjugation: pos={}, base_form={}, conjugation_type={}",
-                    pos, base_form, conjugation_type
-                );
                 let second = Conjugation {
                     pos,
-                    base_form,
+                    word: base_form,
                     conjugation_type,
                 };
                 let compound_word = CompoundWord { first, second };
                 result.push(Token::CompoundWord(compound_word));
             }
         } else if line.contains("Conjugation") {
-            println!("Line contains 'Conjugation'");
             let re = Regex::new(r"\[ Conjugation: \[(.*?)\] (.*)").unwrap();
             if let Some(captures) = re.captures(line) {
                 let pos = captures[1].to_string();
@@ -205,13 +191,9 @@ pub fn process_lines(lines: Vec<&str>) -> Result<Vec<Token>, Box<dyn std::error:
                             "".to_string()
                         }
                     };
-                    println!(
-                        "Conjugation: pos={}, base_form={}, conjugation_type={}",
-                        pos, base_form, conjugation_type
-                    );
                     let conjugation = Conjugation {
                         pos,
-                        base_form,
+                        word: base_form,
                         conjugation_type,
                     };
                     if let Some(Token::Word(_)) = result.last() {
@@ -223,10 +205,9 @@ pub fn process_lines(lines: Vec<&str>) -> Result<Vec<Token>, Box<dyn std::error:
                 }
             }
         } else if line.starts_with("* ") {
-            println!("Line starts with '* '");
             let parts: Vec<&str> = line.split_whitespace().collect();
             if parts.len() > 2 {
-                let word = if parts[2].starts_with("<") {
+                let word = if parts[2].starts_with('<') {
                     parts[3]
                         .trim_matches(|c| c == '【' || c == '】')
                         .to_string()
@@ -246,7 +227,6 @@ pub fn process_lines(lines: Vec<&str>) -> Result<Vec<Token>, Box<dyn std::error:
                 } else {
                     "".to_string()
                 };
-                println!("Word: word={}, pos={}", word, pos);
                 let word = Word { word, pos };
                 result.push(Token::Word(word));
             }
@@ -257,12 +237,7 @@ pub fn process_lines(lines: Vec<&str>) -> Result<Vec<Token>, Box<dyn std::error:
 }
 
 #[derive(Clone, Debug)]
-pub enum Rule {
-    PosWord(PosWordRule),
-    Pos(PosRule),
-}
-
-struct WordRule {
+pub struct WordRule {
     word: String,
 }
 
@@ -272,14 +247,15 @@ pub struct PosWordRule {
     word: String,
 }
 
-struct PosWordPosRule {
+#[derive(Clone, Debug)]
+pub struct PosWordPosRule {
     pos1: Vec<String>,
     word: String,
     pos2: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
-struct PosRule {
+pub struct PosRule {
     pos: Vec<String>,
 }
 
@@ -287,9 +263,53 @@ struct PosRule {
 pub struct RuleSet {
     pos_word_rules: Vec<PosWordRule>,
     pos_rules: Vec<PosRule>,
+    word_rules: Vec<WordRule>,
+    pos_word_pos_rules: Vec<PosWordPosRule>,
 }
 
 pub fn load_rules() -> RuleSet {
+    let word_rules = vec![
+        WordRule {
+            word: "は".to_string(),
+        },
+        WordRule {
+            word: "これ".to_string(),
+        },
+        WordRule {
+            word: "それ".to_string(),
+        },
+        WordRule {
+            word: "あれ".to_string(),
+        },
+        WordRule {
+            word: "いい".to_string(),
+        },
+        WordRule {
+            word: "よくない".to_string(),
+        },
+        WordRule {
+            word: "よかった".to_string(),
+        },
+        WordRule {
+            word: "よくなかった".to_string(),
+        },
+        WordRule {
+            word: "いいです".to_string(),
+        },
+        WordRule {
+            word: "よくないです".to_string(),
+        },
+        WordRule {
+            word: "よかったです".to_string(),
+        },
+        WordRule {
+            word: "よくなかったです".to_string(),
+        },
+        WordRule {
+            word: "か".to_string(),
+        },
+    ];
+
     let pos_word_rules = vec![
         PosWordRule {
             pos: vec![
@@ -326,10 +346,34 @@ pub fn load_rules() -> RuleSet {
         },
     ];
 
+    let pos_word_pos_rules = vec![PosWordPosRule {
+        pos1: vec!["n".to_string(), "pn".to_string()],
+        word: "の".to_string(),
+        pos2: vec!["n".to_string(), "pn".to_string()],
+    }];
+
     RuleSet {
         pos_word_rules,
         pos_rules,
+        word_rules,
+        pos_word_pos_rules,
     }
+}
+
+fn match_word_rules(tokens: &Vec<Token>, word_rules: &Vec<WordRule>) -> Vec<WordRule> {
+    let mut matched_rules = Vec::new();
+
+    for token in tokens {
+        if let Token::Word(word) = token {
+            for rule in word_rules {
+                if rule.word == word.word {
+                    matched_rules.push((*rule).clone());
+                }
+            }
+        }
+    }
+
+    matched_rules
 }
 
 fn match_pos_word_rules(
@@ -374,23 +418,45 @@ fn match_pos_rules(tokens: &Vec<Token>, pos_rules: &Vec<PosRule>) -> Vec<PosRule
         }
     }
 
-    if matched_rules.is_empty() {}
+    matched_rules
+}
+
+fn match_pos_word_pos_rules(
+    tokens: &[Token],
+    pos_word_pos_rules: &Vec<PosWordPosRule>,
+) -> Vec<PosWordPosRule> {
+    let mut matched_rules = Vec::new();
+
+    for i in 0..tokens.len() {
+        if i + 2 < tokens.len() {
+            if let (Token::Word(word1), Token::Word(word2), Token::Word(word3)) =
+                (&tokens[i], &tokens[i + 1], &tokens[i + 2])
+            {
+                for rule in pos_word_pos_rules {
+                    if rule.pos1.contains(&word1.pos)
+                        && rule.word == word2.word
+                        && rule.pos2.contains(&word3.pos)
+                    {
+                        matched_rules.push((*rule).clone());
+                    }
+                }
+            }
+        }
+    }
 
     matched_rules
 }
 
-pub fn match_rules(tokens: Vec<Token>, rules: RuleSet) -> Vec<Rule> {
-    let mut matched_rules = Vec::new();
-
+pub fn match_rules(tokens: Vec<Token>, rules: RuleSet) -> RuleSet {
     let matched_pos_word_rules = match_pos_word_rules(&tokens, &rules.pos_word_rules);
-    for rule in matched_pos_word_rules {
-        matched_rules.push(Rule::PosWord(rule));
-    }
-
     let matched_pos_rules = match_pos_rules(&tokens, &rules.pos_rules);
-    for rule in matched_pos_rules {
-        matched_rules.push(Rule::Pos(rule));
-    }
+    let matched_word_rules = match_word_rules(&tokens, &rules.word_rules);
+    let matched_pos_word_pos_rules = match_pos_word_pos_rules(&tokens, &rules.pos_word_pos_rules);
 
-    matched_rules
+    RuleSet {
+        pos_word_rules: matched_pos_word_rules,
+        pos_rules: matched_pos_rules,
+        word_rules: matched_word_rules,
+        pos_word_pos_rules: matched_pos_word_pos_rules,
+    }
 }

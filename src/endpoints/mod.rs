@@ -1,5 +1,4 @@
 use crate::cornucopia::queries::module_1::example_query;
-use crate::ichiran::ichiran_output_to_bracket_furigana;
 use crate::ichiran::run_docker_command;
 use crate::sentence_processing::load_rules;
 use crate::sentence_processing::match_rules;
@@ -79,16 +78,6 @@ impl Api {
                 // let output_str_hard = "食べない".to_string();
                 let lines: Vec<&str> = output_str.lines().collect();
 
-                // println!("POS Tags: {:?}", pos_tags);
-
-                // let sentence_with_bracket_furigana =
-                //     ichiran_output_to_bracket_furigana(lines.clone()).map_err(|_| {
-                //         InternalServerError(std::io::Error::new(
-                //             std::io::ErrorKind::Other,
-                //             "Failed to process output from docker command",
-                //         ))
-                //     })?;
-
                 let result = process_lines(lines).map_err(|_| {
                     InternalServerError(std::io::Error::new(
                         std::io::ErrorKind::Other,
@@ -112,19 +101,19 @@ impl Api {
                 //     vec!["n,pn".to_string(), "も".to_string()],
                 //     vec!["adj-na".to_string(), "な".to_string()],
                 //     // 2.These rules look for a word
-                //     vec!["は".to_string()],
-                //     vec!["これ".to_string()],
-                //     vec!["それ".to_string()],
-                //     vec!["あれ".to_string()],
-                //     vec!["いい".to_string()],
-                //     vec!["よくない".to_string()],
-                //     vec!["よかった".to_string()],
-                //     vec!["よくなかった".to_string()],
-                //     vec!["いいです".to_string()],
-                //     vec!["よくないです".to_string()],
-                //     vec!["よかったです".to_string()],
-                //     vec!["よくなかったです".to_string()],
-                //     vec!["か".to_string()],
+                // vec!["は".to_string()],
+                // vec!["これ".to_string()],
+                // vec!["それ".to_string()],
+                // vec!["あれ".to_string()],
+                // vec!["いい".to_string()],
+                // vec!["よくない".to_string()],
+                // vec!["よかった".to_string()],
+                // vec!["よくなかった".to_string()],
+                // vec!["いいです".to_string()],
+                // vec!["よくないです".to_string()],
+                // vec!["よかったです".to_string()],
+                // vec!["よくなかったです".to_string()],
+                // vec!["か".to_string()],
                 //     // 3. This one looks for a part of speech followed by the word の followed by another part of speech (same commas as to say it can be any of these)
                 //     vec!["n,pn".to_string(), "の".to_string(), "n,pn".to_string()],
                 //     // 4. these ones just look for a part of speech by itself
