@@ -67,8 +67,6 @@ fn ichiran_output_to_kanji_hirigana_array(lines: Vec<&str>) -> Result<Vec<String
         .map(|item| item.replace('【', "[").replace('】', "]"))
         .collect();
 
-    println!("end");
-    println!("{:?}", new_list);
     Ok(new_list)
 }
 
@@ -274,102 +272,9 @@ fn add_furigana(s: &str) -> String {
 // Negative Plain: 静かではなかろう (shizuka dewa nakarou)
 // Negative Formal: 静かではないでしょう (shizuka dewa nai deshou)
 
-pub fn ichiran_output_to_sentence_array(
-    lines: Vec<&str>,
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let mut result = Vec::new();
-    let mut compound_word_flag = false;
-    let mut conjugation_flag = false;
-    let mut last_word_index = 0;
-    let mut conjugation_added = false;
-    println!("Starting to process lines");
-    for i in 0..lines.len() {
-        println!("Processing line: {}", lines[i]);
-        if lines[i].contains("Compound word") {
-            compound_word_flag = true;
-            conjugation_added = false;
-            println!("Found a compound word");
-        }
-        if lines[i].contains("Conjugation") {
-            conjugation_flag = true;
-            println!("Found the conjugation of the word");
-        }
-        if conjugation_flag && !conjugation_added && i < lines.len() - 1 {
-            let next_line = lines[i + 1];
-            let parts: Vec<&str> = next_line.split("【").collect();
-            if parts.len() > 1 {
-                let word = parts[0].trim().to_string();
-                println!("Extracted word from the line after conjugation: {}", word);
-                if compound_word_flag {
-                    println!("Replacing last word in result with extracted word");
-                    conjugation_added = true;
-                }
-                result[last_word_index] = word;
-                conjugation_flag = false;
-            }
-        }
-        if lines[i].starts_with("*") {
-            println!("Line starts with '*'");
-            let parts: Vec<&str> = lines[i].split_whitespace().collect();
-            println!("Parts after splitting the line: {:?}", parts);
-            if parts.len() > 2 {
-                let word = if parts[2].starts_with("<") {
-                    parts[3]
-                        .trim_matches(|c| c == '【' || c == '】')
-                        .to_string()
-                } else {
-                    parts[2]
-                        .trim_matches(|c| c == '【' || c == '】')
-                        .to_string()
-                };
-                println!("Pushing word to result: {}", word);
-                result.push(word);
-                last_word_index = result.len() - 1;
-            }
-        }
-    }
-    println!("Final result: {:?}", result);
-    Ok(result)
-}
-
-pub fn extract_pos_tags(lines: Vec<&str>) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let mut pos_tags = Vec::new();
-    let mut conjugation_types = Vec::new();
-    let re = Regex::new(r"\[([a-z0-9,-]+)\]")?;
-    let re_conj = Regex::new(r"\[ Conjugation: \[.*?\] (.*)")?;
-
-    for i in 0..lines.len() {
-        if lines[i].starts_with("* ") {
-            // Check the next line for the part of speech tag
-            if i + 1 < lines.len() {
-                if lines[i + 1].starts_with("1.") {
-                    let match_ = re.captures(lines[i + 1]);
-                    if let Some(match_) = match_ {
-                        pos_tags.push(match_[1].to_string());
-                    }
-                }
-                // This deals with the conjugation case that spits out '\n \n'
-                else if lines[i + 1].is_empty() {
-                    let match_ = re.captures(lines[i + 2]);
-                    if let Some(match_) = match_ {
-                        pos_tags.push(match_[1].to_string());
-                    }
-                }
-            }
-        } else if lines[i].starts_with("[ Conjugation") {
-            let match_ = re_conj.captures(lines[i]);
-            if let Some(match_) = match_ {
-                conjugation_types.push(match_[1].to_string());
-            }
-        }
-    }
-
-    Ok(pos_tags)
-}
-
 #[derive(Debug)]
 struct Conjugation {
-    part_of_speech: String,
+    pos: String,
     base_form: String,
     conjugation_type: String,
 }
@@ -377,7 +282,7 @@ struct Conjugation {
 #[derive(Debug)]
 struct Word {
     word: String,
-    part_of_speech: String,
+    pos: String,
 }
 
 #[derive(Debug)]
@@ -398,30 +303,40 @@ pub fn process_lines(lines: Vec<&str>) -> Result<Vec<Token>, Box<dyn std::error:
 
     for i in 0..lines.len() {
         let line = lines[i];
-        println!("Line content: {}", line);
+        println!("Processing line: {}", line);
         if line.contains("Compound word") {
+            println!("Line contains 'Compound word'");
             if i + 3 < lines.len() && lines[i + 3].contains("Conjugation") {
+                println!("Found 'Conjugation' in line {}", i + 3);
                 let re = Regex::new(r"\[ Conjugation: \[(.*?)\] (.*)").unwrap();
                 let captures = re.captures(lines[i + 3]).unwrap();
-                let part_of_speech = captures[1].to_string();
+                let pos = captures[1].to_string();
                 let conjugation_type = captures[2].to_string();
                 let next_line = lines[i + 4];
                 let re_base = Regex::new(r"  (.*?) 【").unwrap();
                 let captures = re_base.captures(next_line).unwrap();
                 let base_form = captures[1].to_string();
+                println!(
+                    "First conjugation: pos={}, base_form={}, conjugation_type={}",
+                    pos, base_form, conjugation_type
+                );
                 let first = Conjugation {
-                    part_of_speech,
+                    pos,
                     base_form,
                     conjugation_type,
                 };
                 let captures = re.captures(lines[i + 6]).unwrap();
-                let part_of_speech = captures[1].to_string();
+                let pos = captures[1].to_string();
                 let conjugation_type = captures[2].to_string();
                 let next_line = lines[i + 7];
                 let captures = re_base.captures(next_line).unwrap();
                 let base_form = captures[1].to_string();
+                println!(
+                    "Second conjugation: pos={}, base_form={}, conjugation_type={}",
+                    pos, base_form, conjugation_type
+                );
                 let second = Conjugation {
-                    part_of_speech,
+                    pos,
                     base_form,
                     conjugation_type,
                 };
@@ -429,26 +344,28 @@ pub fn process_lines(lines: Vec<&str>) -> Result<Vec<Token>, Box<dyn std::error:
                 result.push(Token::CompoundWord(compound_word));
             }
         } else if line.contains("Conjugation") {
+            println!("Line contains 'Conjugation'");
             let re = Regex::new(r"\[ Conjugation: \[(.*?)\] (.*)").unwrap();
             if let Some(captures) = re.captures(line) {
-                let part_of_speech = captures[1].to_string();
+                let pos = captures[1].to_string();
                 let conjugation_type = captures[2].to_string();
-                // Get the next line
                 if i + 1 < lines.len() {
                     let next_line = lines[i + 1];
-                    // Extract the base form from the next line
                     let re_base = Regex::new(r"  (.*?) 【").unwrap();
                     let base_form = if let Some(captures) = re_base.captures(next_line) {
                         captures[1].to_string()
                     } else {
                         "".to_string()
                     };
+                    println!(
+                        "Conjugation: pos={}, base_form={}, conjugation_type={}",
+                        pos, base_form, conjugation_type
+                    );
                     let conjugation = Conjugation {
-                        part_of_speech,
+                        pos,
                         base_form,
                         conjugation_type,
                     };
-                    // Remove the last added word only if the conjugation_type does not contain "Conjunctive (~te)"
                     if let Some(Token::Word(_)) = result.last() {
                         if !conjugation.conjugation_type.contains("Conjunctive (~te)") {
                             result.pop();
@@ -458,6 +375,7 @@ pub fn process_lines(lines: Vec<&str>) -> Result<Vec<Token>, Box<dyn std::error:
                 }
             }
         } else if line.starts_with("* ") {
+            println!("Line starts with '* '");
             let parts: Vec<&str> = line.split_whitespace().collect();
             if parts.len() > 2 {
                 let word = if parts[2].starts_with("<") {
@@ -480,10 +398,8 @@ pub fn process_lines(lines: Vec<&str>) -> Result<Vec<Token>, Box<dyn std::error:
                 } else {
                     "".to_string()
                 };
-                let word = Word {
-                    word,
-                    part_of_speech: pos,
-                };
+                println!("Word: word={}, pos={}", word, pos);
+                let word = Word { word, pos };
                 result.push(Token::Word(word));
             }
         }
@@ -492,88 +408,141 @@ pub fn process_lines(lines: Vec<&str>) -> Result<Vec<Token>, Box<dyn std::error:
     Ok(result)
 }
 
-pub fn find_grammar_rules(
-    kanji_with_furigana_array: Vec<String>,
-    parts_of_speech_array: Vec<String>,
-    rules: Vec<Vec<String>>,
-) -> Result<Vec<Vec<String>>, Box<dyn std::error::Error>> {
-    let mut rule_matches = vec![];
-
-    for rule in rules {
-        if rule.len() == 1 {
-            let matches = match_single_element_rule(
-                &kanji_with_furigana_array,
-                &parts_of_speech_array,
-                &rule,
-            )?;
-            rule_matches.extend(matches.clone());
-        } else {
-            let matches = match_multi_element_rule(
-                &kanji_with_furigana_array,
-                &parts_of_speech_array,
-                &rule,
-            )?;
-            rule_matches.extend(matches.clone());
-        }
-    }
-
-    Ok(rule_matches)
+#[derive(Clone, Debug)]
+pub enum Rule {
+    PosWord(PosWordRule),
+    Pos(PosRule),
 }
 
-fn match_single_element_rule(
-    kanji_with_furigana_array: &[String],
-    parts_of_speech_array: &[String],
-    rule: &[String],
-) -> Result<Vec<Vec<String>>, Box<dyn std::error::Error>> {
-    let mut matches = vec![];
-
-    for i in 0..kanji_with_furigana_array.len() {
-        if kanji_with_furigana_array[i] == rule[0] || parts_of_speech_array[i] == rule[0] {
-            matches.push(rule.to_vec());
-        }
-    }
-
-    Ok(matches)
+struct WordRule {
+    word: String,
 }
 
-fn match_multi_element_rule(
-    kanji_with_furigana_array: &[String],
-    parts_of_speech_array: &[String],
-    rule: &[String],
-) -> Result<Vec<Vec<String>>, Box<dyn std::error::Error>> {
-    let mut rule_matches = vec![];
+#[derive(Clone, Debug)]
+pub struct PosWordRule {
+    pos: Vec<String>,
+    word: String,
+}
 
-    if rule.len() == 2 {
-        let rule_start: Vec<&str> = rule[0].split(',').collect(); // error happens here -> Message:  index out of bounds: the len is 1 but the index is 1
-        let rule_end = &rule[1];
+struct PosWordPosRule {
+    pos1: Vec<String>,
+    word: String,
+    pos2: Vec<String>,
+}
 
-        for i in 0..(kanji_with_furigana_array.len() - 1) {
-            let pos_tags_start: Vec<&str> = parts_of_speech_array[i].split(',').collect();
+#[derive(Clone, Debug)]
+struct PosRule {
+    pos: Vec<String>,
+}
 
-            if kanji_with_furigana_array[i + 1] == *rule_end
-                && pos_tags_start.iter().any(|&x| rule_start.contains(&x))
-            {
-                rule_matches.push(rule.to_vec());
-            }
-        }
-    } else {
-        let rule_start: Vec<&str> = rule[0].split(',').collect();
-        let rule_end: Vec<&str> = rule[rule.len() - 1].split(',').collect();
-        let rule_middle = &rule[1];
+#[derive(Clone, Debug)]
+pub struct RuleSet {
+    pos_word_rules: Vec<PosWordRule>,
+    pos_rules: Vec<PosRule>,
+}
 
-        for i in 1..(kanji_with_furigana_array.len() - 1) {
-            if kanji_with_furigana_array[i] == *rule_middle {
-                let pos_tags_start: Vec<&str> = parts_of_speech_array[i - 1].split(',').collect();
-                let pos_tags_end: Vec<&str> = parts_of_speech_array[i + 1].split(',').collect();
+pub fn load_rules() -> RuleSet {
+    let pos_word_rules = vec![
+        PosWordRule {
+            pos: vec![
+                "n".to_string(),
+                "pn".to_string(),
+                "adj-i".to_string(),
+                "adj-na".to_string(),
+            ],
+            word: "です".to_string(),
+        },
+        PosWordRule {
+            pos: vec!["n".to_string(), "pn".to_string(), "adj-na".to_string()],
+            word: "だ".to_string(),
+        },
+        PosWordRule {
+            pos: vec!["n".to_string(), "pn".to_string()],
+            word: "も".to_string(),
+        },
+        PosWordRule {
+            pos: vec!["adj-na".to_string()],
+            word: "な".to_string(),
+        },
+    ];
 
-                if pos_tags_start.iter().any(|&x| rule_start.contains(&x))
-                    && pos_tags_end.iter().any(|&x| rule_end.contains(&x))
-                {
-                    rule_matches.push(rule.to_vec());
+    let pos_rules = vec![
+        PosRule {
+            pos: vec!["v1".to_string()], // ichidan verbs
+        },
+        PosRule {
+            pos: vec!["v5r".to_string()], // godan verbs
+        },
+        PosRule {
+            pos: vec!["v5k".to_string()], // godan verbs
+        },
+    ];
+
+    RuleSet {
+        pos_word_rules,
+        pos_rules,
+    }
+}
+
+fn match_pos_word_rules(
+    tokens: &Vec<Token>,
+    pos_word_rules: &Vec<PosWordRule>,
+) -> Vec<PosWordRule> {
+    let mut matched_rules = Vec::new();
+
+    for token in tokens {
+        if let Token::Word(word) = token {
+            for rule in pos_word_rules {
+                if rule.pos.contains(&word.pos) && rule.word == word.word {
+                    matched_rules.push((*rule).clone());
                 }
             }
         }
     }
 
-    Ok(rule_matches)
+    matched_rules
+}
+
+fn match_pos_rules(tokens: &Vec<Token>, pos_rules: &Vec<PosRule>) -> Vec<PosRule> {
+    let mut matched_rules = Vec::new();
+
+    for token in tokens {
+        match token {
+            Token::Word(word) => {
+                for rule in pos_rules {
+                    if rule.pos.contains(&word.pos) {
+                        matched_rules.push((*rule).clone());
+                    }
+                }
+            }
+            Token::Conjugation(conj) => {
+                for rule in pos_rules {
+                    if rule.pos.contains(&conj.pos) {
+                        matched_rules.push((*rule).clone());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if matched_rules.is_empty() {}
+
+    matched_rules
+}
+
+pub fn match_rules(tokens: Vec<Token>, rules: RuleSet) -> Vec<Rule> {
+    let mut matched_rules = Vec::new();
+
+    let matched_pos_word_rules = match_pos_word_rules(&tokens, &rules.pos_word_rules);
+    for rule in matched_pos_word_rules {
+        matched_rules.push(Rule::PosWord(rule));
+    }
+
+    let matched_pos_rules = match_pos_rules(&tokens, &rules.pos_rules);
+    for rule in matched_pos_rules {
+        matched_rules.push(Rule::Pos(rule));
+    }
+
+    matched_rules
 }

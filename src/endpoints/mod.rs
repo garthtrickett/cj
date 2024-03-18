@@ -1,8 +1,7 @@
 use crate::cornucopia::queries::module_1::example_query;
-use crate::ichiran::extract_pos_tags;
-use crate::ichiran::find_grammar_rules;
 use crate::ichiran::ichiran_output_to_bracket_furigana;
-use crate::ichiran::ichiran_output_to_sentence_array;
+use crate::ichiran::load_rules;
+use crate::ichiran::match_rules;
 use crate::ichiran::process_lines;
 use crate::ichiran::run_docker_command;
 // use color_eyre::config::PanicHook;
@@ -80,13 +79,6 @@ impl Api {
                 // let output_str_hard = "食べない".to_string();
                 let lines: Vec<&str> = output_str.lines().collect();
 
-                // let pos_tags = extract_pos_tags(lines.clone()).map_err(|_| {
-                //     InternalServerError(std::io::Error::new(
-                //         std::io::ErrorKind::Other,
-                //         "Failed to extract grammar",
-                //     ))
-                // })?;
-
                 // println!("POS Tags: {:?}", pos_tags);
 
                 // let sentence_with_bracket_furigana =
@@ -96,15 +88,6 @@ impl Api {
                 //             "Failed to process output from docker command",
                 //         ))
                 //     })?;
-
-                // let sentence_array = ichiran_output_to_sentence_array(lines).map_err(|_| {
-                //     InternalServerError(std::io::Error::new(
-                //         std::io::ErrorKind::Other,
-                //         "Failed to process output from docker command",
-                //     ))
-                // })?;
-
-                // println!("Sentence Array: {:?}", sentence_array);
 
                 let result = process_lines(lines).map_err(|_| {
                     InternalServerError(std::io::Error::new(
@@ -117,31 +100,37 @@ impl Api {
                     println!("{:?}\n", line);
                 }
 
+                let rules = load_rules();
+
+                let matched_rules = match_rules(result, rules);
+                println!("{:?}", matched_rules);
                 // Define your rules here
-                let rules: Vec<Vec<String>> = vec![
-                    vec!["n,pn,adj-i,adj-na".to_string(), "です".to_string()],
-                    vec!["n,pn,adj-na".to_string(), "だ".to_string()],
-                    vec!["n,pn".to_string(), "も".to_string()],
-                    vec!["は".to_string()],
-                    vec!["これ".to_string()],
-                    vec!["それ".to_string()],
-                    vec!["あれ".to_string()],
-                    vec!["n,pn".to_string(), "の".to_string(), "n,pn".to_string()],
-                    vec!["いい".to_string()],
-                    vec!["よくない".to_string()],
-                    vec!["よかった".to_string()],
-                    vec!["よくなかった".to_string()],
-                    vec!["いいです".to_string()],
-                    vec!["よくないです".to_string()],
-                    vec!["よかったです".to_string()],
-                    vec!["よくなかったです".to_string()],
-                    vec!["adj-na".to_string(), "な".to_string()],
-                    vec!["か".to_string()],
-                    vec!["v1".to_string()],  // ichidan verbs
-                    vec!["v5r".to_string()], // godan verbs
-                    // new ones
-                    vec!["".to_string()],
-                ];
+                // let rules: Vec<Vec<String>> = vec![
+                //     // 1. These look for a part of speech (one of the ones seperated by comams) followed by a word
+                //     vec!["n,pn,adj-i,adj-na".to_string(), "です".to_string()],
+                //     vec!["n,pn,adj-na".to_string(), "だ".to_string()],
+                //     vec!["n,pn".to_string(), "も".to_string()],
+                //     vec!["adj-na".to_string(), "な".to_string()],
+                //     // 2.These rules look for a word
+                //     vec!["は".to_string()],
+                //     vec!["これ".to_string()],
+                //     vec!["それ".to_string()],
+                //     vec!["あれ".to_string()],
+                //     vec!["いい".to_string()],
+                //     vec!["よくない".to_string()],
+                //     vec!["よかった".to_string()],
+                //     vec!["よくなかった".to_string()],
+                //     vec!["いいです".to_string()],
+                //     vec!["よくないです".to_string()],
+                //     vec!["よかったです".to_string()],
+                //     vec!["よくなかったです".to_string()],
+                //     vec!["か".to_string()],
+                //     // 3. This one looks for a part of speech followed by the word の followed by another part of speech (same commas as to say it can be any of these)
+                //     vec!["n,pn".to_string(), "の".to_string(), "n,pn".to_string()],
+                //     // 4. these ones just look for a part of speech by itself
+                // vec!["v1".to_string()],  // ichidan verbs
+                // vec!["v5r".to_string()], // godan verbs
+                // ];
 
                 // let grammar_rules =
                 //     find_grammar_rules(sentence_array, pos_tags, rules).map_err(|_| {
