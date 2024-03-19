@@ -12,6 +12,7 @@ use tracing_subscriber::FmtSubscriber;
 mod cornucopia;
 mod endpoints;
 mod ichiran;
+mod ichiran_extraction;
 mod sentence_processing;
 
 // Add more schema files and queries, rebuild the crate,
