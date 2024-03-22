@@ -1,5 +1,6 @@
 use cornucopia::CodegenSettings;
 use dotenv::dotenv;
+// Use the postgres crate for interacting with PostgreSQL
 use postgres::{Client, NoTls};
 
 fn main() -> Result<(), postgres::Error> {
