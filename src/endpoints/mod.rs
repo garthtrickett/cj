@@ -20,6 +20,7 @@ pub struct Api;
 
 #[OpenApi]
 impl Api {
+    // Voldemort
     // This is the echo endpoint that returns a greeting message.
     #[oai(path = "/hello", method = "get")]
     async fn echo(&self, name: Query<Option<String>>) -> PlainText<String> {
