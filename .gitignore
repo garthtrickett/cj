@@ -2,3 +2,5 @@
 .env
 /docker-ichiran
 .aider*
+.aider*
+node_extract/node_modules
