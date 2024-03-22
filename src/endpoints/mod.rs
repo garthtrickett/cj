@@ -20,13 +20,16 @@ pub struct Api;
 
 #[OpenApi]
 impl Api {
+    // This is the echo endpoint that returns a greeting message.
     #[oai(path = "/hello", method = "get")]
     async fn echo(&self, name: Query<Option<String>>) -> PlainText<String> {
+        println!("Received a request for the echo endpoint.");
         match name.0 {
             Some(name) => PlainText(name),
             None => PlainText("hi!".to_string()),
         }
     }
+    // This endpoint creates a new todo item and returns its ID.
     #[oai(path = "/todos", method = "post")]
     pub async fn create(
         &self,
@@ -34,6 +37,7 @@ impl Api {
         _description: PlainText<String>,
     ) -> Result<Json<i32>, Error> {
         let client = pool.get().await.map_err(InternalServerError)?;
+        println!("Obtained database client for creating a todo.");
 
         let _result = example_query()
             .bind(&client)
@@ -42,13 +46,17 @@ impl Api {
             .map_err(InternalServerError)?;
 
         let id = 3;
+        println!("Created a new todo with ID: {}", id);
 
         Ok(Json(id))
     }
 
+    // This endpoint retrieves all todo items.
     #[oai(path = "/todos", method = "get")]
     pub async fn get_all(&self, pool: Data<&Pool>) -> Response {
+        println!("Received a request to get all todos.");
         let client = pool.get().await.map_err(InternalServerError)?;
+        println!("Obtained database client for retrieving todos.");
 
         let result = example_query()
             .bind(&client)
@@ -59,6 +67,7 @@ impl Api {
         Ok(Json(result))
     }
 
+    // This endpoint processes a subtitle input and returns processed data.
     #[oai(path = "/subtitle", method = "post")]
 
     pub async fn subtitle(
@@ -68,6 +77,7 @@ impl Api {
         let output = spawn_blocking(move || run_docker_command(&input))
             .await
             .map_err(|_| {
+                println!("Failed to run docker command.");
                 InternalServerError(std::io::Error::new(
                     std::io::ErrorKind::Other,
                     "Failed to run docker command",
@@ -75,6 +85,7 @@ impl Api {
             })?;
         match output {
             Ok(output_str) => {
+                println!("Docker command ran successfully.");
                 // let output_str_hard = "食べない".to_string();
                 let lines: Vec<&str> = output_str.lines().collect();
 
@@ -90,11 +101,14 @@ impl Api {
                 }
 
                 let rules = load_rules();
+                println!("Loaded rules for sentence processing.");
 
                 let matched_rules = match_rules(result, rules);
+                println!("Matched rules: {:?}", matched_rules);
                 println!("{:?}", matched_rules);
                 // Define your rules here
                 // let rules: Vec<Vec<String>> = vec![
+                //     ...
                 //     // 1. These look for a part of speech (one of the ones seperated by comams) followed by a word
                 //     vec!["n,pn,adj-i,adj-na".to_string(), "です".to_string()],
                 //     vec!["n,pn,adj-na".to_string(), "だ".to_string()],
