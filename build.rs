@@ -3,6 +3,7 @@ use dotenv::dotenv;
 use postgres::{Client, NoTls};
 
 fn main() -> Result<(), postgres::Error> {
+    // Load the .env file to set the DATABASE_URL environment variable
     dotenv().ok();
 
     let queries_path = "src/queries";
