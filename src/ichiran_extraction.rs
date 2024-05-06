@@ -1,5 +1,5 @@
 // ichiran_extract.rs
-
+// For Cecil Hiring Manager - Japanese language learning tool that extracts unique words from ichi.moe tokenizer
 use regex::Regex;
 
 #[derive(Debug)]
