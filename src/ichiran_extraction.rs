@@ -23,7 +23,7 @@ pub enum Token {
     Conjugation(Conjugation),
 }
 
-// TODO: next is to get all the meanings for words, conjugations and first word in compound word and put them in an array
+// TODO: Test this out with a few different sentences
 pub fn process_lines(lines: Vec<&str>) -> Result<Vec<Token>, Box<dyn std::error::Error>> {
     let mut result = Vec::new();
 
@@ -35,21 +35,39 @@ pub fn process_lines(lines: Vec<&str>) -> Result<Vec<Token>, Box<dyn std::error:
 
     for i in 0..lines.len() {
         let line = lines[i];
-        println!("{:?}\n", line);
         if line.contains("Compound word") {
+            println!("{:?}\n", line);
             is_compound_word = true;
             // Parse the compound word...
             let re_word = Regex::new(r"\* (.*?) ").unwrap();
             let captures_word = re_word.captures(lines[i + 1]).unwrap();
             let jap_word = captures_word[1].to_string();
 
+            // START: Dealing with meanings vector
+            // Start from the next line and continue until an empty line or a line containing "Conjugation" is hit
+            let mut j = i + 2;
+
+            while j < lines.len()
+                && !lines[j].trim().is_empty()
+                && !lines[j].contains("Conjugation")
+                && !lines[j].contains('*')
+            {
+                println!("GETTING HERE");
+                // This is a meaning line, add it to the current meanings
+                current_meanings.push(lines[j].to_string());
+                j += 1;
+            }
+
+            // END: Dealing with meanings vector
+
             let word = Word {
                 jap: jap_word,        // Japanese word extracted from line
                 pos: "n".to_string(), // Replace with actual part of speech
-                meanings: vec![],
+                meanings: current_meanings.clone(),
             };
 
             result.push(Token::Word(word));
+            current_meanings.clear()
         } else if line.contains("Conjugation") && !conjugation_within_word {
             if is_compound_word {
                 is_compound_word = false;
@@ -86,6 +104,7 @@ pub fn process_lines(lines: Vec<&str>) -> Result<Vec<Token>, Box<dyn std::error:
                     }
 
                     // END: Dealing with meanings vector
+
                     let conjugation = Conjugation {
                         pos,
                         jap: base_form,
