@@ -1,6 +1,11 @@
-/target
-.env
-/docker-ichiran
-.aider*
-.aider*
-node_extract/node_modules
+/nbproject/
+/.idea/*
+*.tmlanguage.cache
+*.tmPreferences.cache
+*.stTheme.cache
+*.sublime-workspace
+*.sublime-project
+node_modules/
+bin/
+obj/
+.vs/
