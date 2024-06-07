@@ -42,8 +42,5 @@ cornucopia = "0.9.0"
 
 
 
-[[bin]]
-name = "migrate"
-path = "src/migrate.rs"
 
 

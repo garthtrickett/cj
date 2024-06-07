@@ -1,11 +1,12 @@
 use cornucopia::CodegenSettings;
 use dotenv::dotenv;
-// Use the postgres crate for interacting with PostgreSQL
 use postgres::{Client, NoTls};
 
 fn main() -> Result<(), postgres::Error> {
     // Load the .env file to set the DATABASE_URL environment variable
     dotenv().ok();
+
+    // print out "5"
 
     let queries_path = "src/queries";
     let destination = "src/cornucopia.rs";
